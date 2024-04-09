@@ -1,0 +1,33 @@
+name: Generate CSV
+on:
+    workflow_dispatch:
+    schedule:
+        - cron: "0 6 * * *" # <https://crontab.guru/#30_23_*_*_*>
+env:
+    PGDATABASE: ${{ secrets.PGDATABASE }}
+    PGHOST: ${{ secrets.PGHOST }}
+    PGPASSWORD: ${{ secrets.PGPASSWORD }}
+    PGPORT: ${{ secrets.PGPORT }}
+    PGUSER: ${{ secrets.PGUSER }}
+jobs:
+    generate:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v3
+            - name: Install PostgreSQL # Step 1
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install --yes postgresql
+            - name: Generate CSV # Step 2
+              run: scripts/generate_csv.sh
+              shell: bash
+            - name: Get current date # Step 3
+              id: date
+              run: echo "::set-output name=date::$(TZ=Asia/Singapore date +'%d %b %Y')"
+            - name: Commit changes # Step 4
+              if: ${{ success() }}
+              uses: EndBug/add-and-commit@v9
+              with:
+                  pull: "--rebase --autostash ."
+                  message: "chore(data): update generated csv automatically for ${{ steps.date.outputs.date }} data"
+                  default_author: github_actions
